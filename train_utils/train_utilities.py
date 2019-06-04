@@ -84,8 +84,8 @@ def new_train_model(config: dict,):
     # set callbacks the model
     csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1, save_weights_only = True)
-    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True, save_weights_only = True)
+    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
+    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
     model_save_path = "./models/saved_model/{0}".format(model_name)
 
     # Train model
@@ -192,8 +192,8 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
     # set callbacks the model
     csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1, save_weights_only = True)
-    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True, save_weights_only = True)
+    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
+    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
     model_save_path = "./models/saved_model/{0}".format(model_name)
 
     # Train model
