@@ -1,0 +1,10 @@
+# Folders
+.ipynb_checkpoints/
+dataset/
+Test/
+models/
+output/
+reid_model_logs/
+
+# Files
+*.ipynb
