@@ -94,7 +94,7 @@ class DataGenerator(keras.utils.Sequence):
             X2[i, ] = img2
             y[i, ] = keras.utils.to_categorical(self.labels[index], num_classes = self.n_classes)
 
-        return X1, X2, y
+        return (X1, X2), y
     
     def __getitem__(self, index):
         """
