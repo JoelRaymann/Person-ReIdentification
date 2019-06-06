@@ -12,7 +12,7 @@ import pandas as pd
 import sys, traceback
 
 # import in-house packages
-import generator_utils.generator_utilities as generator_utilities
+import preprocessing_utils
 import model_utils.person_reid_model as person_reid_model
 import os_utils.os_utilities as os_utilities
 
@@ -40,7 +40,6 @@ def new_train_model(config: dict,):
     no_of_epochs = config["no_of_epochs"]
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
-    threads = config["threads"]
     model_name = config["model_name"]
     no_gpus = config["gpus"]
     train_data_path = config["train_data_path"]
@@ -50,6 +49,7 @@ def new_train_model(config: dict,):
     print("[INFO]: Using config: \n", config)
     # Set up environment
     folders = [
+        "./{0}_logs".format(model_name),
         "./models/checkpoints/", 
         "./output/csv_log/",
         "./models/best_model",
@@ -58,28 +58,37 @@ def new_train_model(config: dict,):
     ]
     os_utilities.make_directory(folders)
 
+    # Get steps_per_epoch
+    train_data = pd.read_csv(train_data_path)
+    val_data = pd.read_csv(val_data_path)
+    test_data = pd.read_csv(test_data_path)
+    train_steps = len(train_data) / batch_size
+    val_steps = len(val_data) / batch_size
+    test_steps = len(test_data) / batch_size
+    del train_data
+    del val_data
+    del test_data
+    print("[INFO]:Train Steps per Epoch: ", train_steps)
+    print("[INFO]:Train Steps per Epoch: ", val_steps)
+    print("[INFO]:Train Steps per Epoch: ", test_steps)
+
+    # Load the generators for the data
+    train_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = train_data_path, batch_size = batch_size, shuffle = True, shuffle_buffer = 1000)
+    val_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = val_data_path, batch_size = batch_size, shuffle = False, shuffle_buffer = 1000)
+    test_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = test_data_path, batch_size = batch_size, shuffle = False, shuffle_buffer = 1000)
+    
     # instantiate the new model and start train
     if no_gpus > 1:
-        # strategy = tf.distribute.MirroredStrategy()
-        print('[INFO] Number of GPU devices in use for training: {}'.format(no_gpus))
-        
-        with tf.device("/cpu:0"):
-            model = person_reid_model.person_recognition_model()
-        
-        model = tf.keras.utils.multi_gpu_model(model, no_gpus)
-        # with strategy.scope():
-        #     model = person_reid_model.person_recognition_model()
+        strategy = tf.distribute.MirroredStrategy()
 
-        model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+        print("[INFO]: No. of GPU devices used: ", strategy.num_replicas_in_sync)
+        with strategy.scope():
+            model = person_reid_model.person_recognition_model()
+            model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
     
     else:
         model = person_reid_model.person_recognition_model()
         model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
-
-    # Load the generators for the data
-    train_gen = generator_utilities.DataGenerator(dataset_metadata_path = train_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = True)
-    val_gen = generator_utilities.DataGenerator(dataset_metadata_path = val_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = False)
-    test_gen = generator_utilities.DataGenerator(dataset_metadata_path = test_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = False)
 
     # set callbacks the model
     csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
@@ -90,14 +99,12 @@ def new_train_model(config: dict,):
 
     # Train model
     try:
-        model.fit_generator(generator = train_gen, 
-                                epochs = no_of_epochs,
-                                max_queue_size = 1, 
-                                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
-                                use_multiprocessing = True,
-                                workers = threads,
-                                validation_data = val_gen, 
-                                shuffle = True)
+        model.fit(generator = train_gen, 
+                epochs = no_of_epochs, 
+                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
+                validation_data = val_gen,
+                validation_steps = val_steps, 
+                steps_per_epoch = train_steps)
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
@@ -117,7 +124,7 @@ def new_train_model(config: dict,):
 
     # Testing Results
     print("[+] Testing the model")
-    loss, accuracy = model.evaluate_generator(generator = test_gen, max_queue_size = 1, use_multiprocessing = True, workers = threads, verbose = 1)
+    loss, accuracy = model.evaluate(test_gen, steps = test_steps, verbose = 1)
     print("[+] Test Loss: ", loss)
     print("[+] Test Accuracy: ", accuracy)
 
@@ -148,7 +155,6 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
     no_of_epochs = config["no_of_epochs"]
     learning_rate = config["learning_rate"]
     batch_size = config["batch_size"]
-    threads = config["threads"]
     model_name = config["model_name"]
     no_gpus = config["gpus"]
     train_data_path = config["train_data_path"]
@@ -158,6 +164,7 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
     print("[INFO]: Using config: \n", config)
     # Set up environment
     folders = [
+        "./{0}_logs".format(model_name),
         "./models/checkpoints/", 
         "./output/csv_log/",
         "./models/best_model",
@@ -166,28 +173,36 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
     ]
     os_utilities.make_directory(folders)
 
-    # instantiate the new model and start train
-    if no_gpus > 1:
-        # strategy = tf.distribute.MirroredStrategy()
-        print('[INFO] Number of GPU devices in use for training: {}'.format(no_gpus))
-        
-        with tf.device("/cpu:0"):
-            model = person_reid_model.person_recognition_model()
-        
-        model = tf.keras.utils.multi_gpu(model, no_gpus)
-        # with strategy.scope():
-        #     model = person_reid_model.person_recognition_model()
-
-        model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
-    
-    else:
-        model = person_reid_model.person_recognition_model()
-        model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+    # Get steps_per_epoch
+    train_data = pd.read_csv(train_data_path)
+    val_data = pd.read_csv(val_data_path)
+    test_data = pd.read_csv(test_data_path)
+    train_steps = len(train_data) / batch_size
+    val_steps = len(val_data) / batch_size
+    test_steps = len(test_data) / batch_size
+    del train_data
+    del val_data
+    del test_data
+    print("[INFO]:Train Steps per Epoch: ", train_steps)
+    print("[INFO]:Train Steps per Epoch: ", val_steps)
+    print("[INFO]:Train Steps per Epoch: ", test_steps)
 
     # Load the generators for the data
-    train_gen = generator_utilities.DataGenerator(dataset_metadata_path = train_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = True)
-    val_gen = generator_utilities.DataGenerator(dataset_metadata_path = val_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = False)
-    test_gen = generator_utilities.DataGenerator(dataset_metadata_path = test_data_path, batch_size = batch_size, dim = (299, 299), n_channels = 3, n_classes = 2, shuffle = False)
+    train_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = train_data_path, batch_size = batch_size, shuffle = True, shuffle_buffer = 1000)
+    val_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = val_data_path, batch_size = batch_size, shuffle = False, shuffle_buffer = 1000)
+    test_gen = preprocessing_utils.load_tf_dataset_generator(dataset_meta_path = test_data_path, batch_size = batch_size, shuffle = False, shuffle_buffer = 1000)
+    
+    # instantiate the new model and start train
+    if no_gpus > 1:
+        strategy = tf.distribute.MirroredStrategy()
+
+        print("[INFO]: No. of GPU devices used: ", strategy.num_replicas_in_sync)
+        with strategy.scope():
+            model = tf.keras.models.load_model(model_path)
+    
+    else:
+        print("[INFO]: Not using Distribution strategy")
+        model = tf.keras.models.load_model(model_path)
 
     # set callbacks the model
     csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
@@ -198,15 +213,13 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
 
     # Train model
     try:
-        model.fit_generator(generator = train_gen, 
-                                epochs = no_of_epochs,
-                                max_queue_size = 1, 
-                                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
-                                use_multiprocessing = True,
-                                workers = threads,
-                                validation_data = val_gen, 
-                                shuffle = True, 
-                                initial_epoch = resume_epoch)
+        model.fit(generator = train_gen, 
+                epochs = no_of_epochs, 
+                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
+                validation_data = val_gen,
+                validation_steps = val_steps, 
+                steps_per_epoch = train_steps,
+                initial_epoch = resume_epoch)
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
@@ -226,6 +239,6 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
 
     # Testing Results
     print("[+] Testing the model")
-    loss, accuracy = model.evaluate_generator(generator = test_gen, max_queue_size = 1, use_multiprocessing = True, workers = threads, verbose = 1)
+    loss, accuracy = model.evaluate(test_gen, steps = test_steps, verbose = 1)
     print("[+] Test Loss: ", loss)
     print("[+] Test Accuracy: ", accuracy)
