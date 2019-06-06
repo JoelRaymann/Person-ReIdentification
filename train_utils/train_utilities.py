@@ -99,7 +99,7 @@ def new_train_model(config: dict,):
 
     # Train model
     try:
-        model.fit(generator = train_gen, 
+        model.fit(train_gen, 
                 epochs = no_of_epochs, 
                 callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
                 validation_data = val_gen,
@@ -213,7 +213,7 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
 
     # Train model
     try:
-        model.fit(generator = train_gen, 
+        model.fit(train_gen, 
                 epochs = no_of_epochs, 
                 callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
                 validation_data = val_gen,
