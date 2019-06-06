@@ -50,6 +50,8 @@ def new_train_model(config: dict,):
         "./output/csv_log/",
         "./models/best_model",
         "./models/saved_model",
+        "./models/saved_model/interrupted",
+        "./models/saved_model/error",
         "./output/graphs/"
     ]
     os_utilities.make_directory(folders)
@@ -88,35 +90,35 @@ def new_train_model(config: dict,):
 
     # set callbacks the model
     csv_callback = tf.keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
-    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
-    model_save_path = "./models/saved_model/{0}".format(model_name)
+    # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1, save_weights_only=True)
+    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True, save_weights_only=True)
+    model_save_path = "./models/saved_model/"
 
     # Train model
     try:
         model.fit(train_gen, 
                 epochs = no_of_epochs, 
-                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
+                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback], #, tensorboard_callback],
                 validation_data = val_gen,
                 validation_steps = val_steps, 
                 steps_per_epoch = train_steps)
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
-        model.save(model_save_path + "_interrupted.h5")
-        del model
+        tf.keras.experimental.export_saved_model(model, model_save_path + "interrupted/")
         sys.exit(2)
 
     except Exception as err:
         print("\n{CRITICAL}: Error, UnHandled Exception: ", err, "\n", traceback.print_exc())
         print("{CRITICAL}: Trying to save the model")
-        model.save(model_save_path + "_error.h5")
+        tf.keras.experimental.export_saved_model(model, model_save_path + "error/")
         del model
         sys.exit(2)
         
     # Model saving
-    model.save(filepath = model_save_path + ".h5")
+    tf.keras.experimental.export_saved_model(model, model_save_path)
+    model.save(filepath = model_save_path + "{0}.h5".format(model_name))
 
     # Testing Results
     print("[+] Testing the model")
@@ -125,13 +127,14 @@ def new_train_model(config: dict,):
     print("[+] Test Accuracy: ", accuracy)
 
 
-def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
+def deterred_train_model(model_path:str, resume_epoch:int, loading_weights: bool, config: dict):
     """
     Function to resume a paused training model
     
     Arguments:
         model_weight_path {str} -- the weight path of the model to load and resume train
         resume_epoch {int} -- The epoch to resume
+        loading_weights {bool} -- The flag to indicate if we are loading weights or model file itself
         config {dict} -- The configuration to train consisting of 
         {
             "no_of_epochs" : no of epochs to train
@@ -161,8 +164,10 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
         "./{0}_logs".format(model_name),
         "./models/checkpoints/", 
         "./output/csv_log/",
-        "./models/best_model",
-        "./models/saved_model",
+        "./models/best_model_{0}".format(resume_epoch),
+        "./models/saved_model_{0}".format(resume_epoch),
+        "./models/saved_model_{0}/interrupted".format(resume_epoch),
+        "./models/saved_model_{0}/error".format(resume_epoch),
         "./output/graphs/"
     ]
     os_utilities.make_directory(folders)
@@ -191,25 +196,41 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
         strategy = tf.distribute.MirroredStrategy()
 
         print("[INFO]: No. of GPU devices used: ", strategy.num_replicas_in_sync)
-        with strategy.scope():
-            model = tf.keras.models.load_model(model_path)
+        if loading_weights:
+            with strategy.scope():
+                model = person_reid_model.person_recognition_model()
+                model.load_weights(model_path)
+                model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+        
+        else:
+            with strategy.scope():
+                model = tf.keras.experimental.load_from_saved_model(model_path)
+                model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
     
     else:
         print("[INFO]: Not using Distribution strategy")
-        model = tf.keras.models.load_model(model_path)
+        if loading_weights:
+            model = person_reid_model.person_recognition_model()
+            model.load_weights(model_path)
+            model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+        
+        else:
+            model = tf.keras.experimental.load_from_saved_model(model_path)
+            model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+    
 
-    # set callbacks the model
-    csv_callback = tf.keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
-    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
-    model_save_path = "./models/saved_model/{0}".format(model_name)
+   # set callbacks the model
+    csv_callback = tf.keras.callbacks.CSVLogger("./output/csv_log/{0}_log_{1}.csv".format(model_name, resume_epoch))
+    # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint_{1}.h5".format(model_name, resume_epoch), period = 1, save_weights_only=True)
+    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint_{1}.h5".format(model_name, resume_epoch), save_best_only = True, save_weights_only=True)
+    model_save_path = "./models/saved_model_{0}/".format(resume_epoch)
 
     # Train model
     try:
         model.fit(train_gen, 
                 epochs = no_of_epochs, 
-                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback, tensorboard_callback],
+                callbacks = [csv_callback, checkpoint_callback, best_model_checkpoint_callback], #, tensorboard_callback],
                 validation_data = val_gen,
                 validation_steps = val_steps, 
                 steps_per_epoch = train_steps,
@@ -217,19 +238,19 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
-        model.save(model_save_path + "_interrupted.h5")
-        del model
+        tf.keras.experimental.export_saved_model(model, model_save_path + "interrupted/")
         sys.exit(2)
 
     except Exception as err:
         print("\n{CRITICAL}: Error, UnHandled Exception: ", err, "\n", traceback.print_exc())
         print("{CRITICAL}: Trying to save the model")
-        model.save(model_save_path + "_error.h5")
+        tf.keras.experimental.export_saved_model(model, model_save_path + "error/")
         del model
         sys.exit(2)
         
     # Model saving
-    model.save(filepath = model_save_path + ".h5")
+    tf.keras.experimental.export_saved_model(model, model_save_path)
+    model.save(filepath = model_save_path + "{0}.h5".format(model_name))
 
     # Testing Results
     print("[+] Testing the model")

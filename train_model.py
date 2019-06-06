@@ -21,7 +21,7 @@ Fresh Train:
     python train_model.py -C <config yaml file path>
 
 Resume Train:
-    python train_model.py -L <load model file path> -R <resume epoch> -C <config yaml file path>
+    python train_model.py -L <load model file path> -R <resume epoch> -W 1 -C <config yaml file path>
 """
 
 if __name__ == "__main__":
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("-V", "--version", help = "Shows program version", action = "store_true")
     parser.add_argument("-L", "--load-model", help = "The model h5 file to load")
     parser.add_argument("-R", "--resume-epoch", help = "The epoch to resume train")
+    parser.add_argument("-W", "--loading-weights", help = "Status telling if we are loading weights or not. Give 1 if loading weights, else ignore it")
     parser.add_argument("-C", "--config-file", help = "The YAML config file for training")
     # Read args
     args = parser.parse_args()
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     load_model_path = ""
     resume_epoch = 0
     config_file_path = "config.yaml"
+    loading_weights = False
     
     if args.load_model:
         load_model_path = str(args.load_model)
@@ -52,6 +54,9 @@ if __name__ == "__main__":
         resume_epoch = int(args.resume_epoch)
     if args.config_file:
         config_file_path = str(args.config_file)
+    if args.loading_weights:
+        if int(args.loading_weights) == 1:
+            loading_weights = True
     
     with open(config_file_path, "r") as file:
         config = yaml.load(stream = file)
@@ -61,4 +66,4 @@ if __name__ == "__main__":
         train_utilities.new_train_model(config = config)
     
     else:
-        train_utilities.deterred_train_model(model_path = load_model_path, resume_epoch = resume_epoch, config = config)
+        train_utilities.deterred_train_model(model_path = load_model_path, resume_epoch = resume_epoch, loading_weights = loading_weights, config = config)
