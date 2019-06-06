@@ -106,12 +106,14 @@ def new_train_model(config: dict,):
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
+        model.save_weights(model_save_path + "_interrupted.h5")
         tf.keras.experimental.export_saved_model(model, model_save_path + "interrupted/")
         sys.exit(2)
 
     except Exception as err:
         print("\n{CRITICAL}: Error, UnHandled Exception: ", err, "\n", traceback.print_exc())
         print("{CRITICAL}: Trying to save the model")
+        model.save_weights(model_save_path + "_error.h5")
         tf.keras.experimental.export_saved_model(model, model_save_path + "error/")
         del model
         sys.exit(2)
@@ -238,12 +240,14 @@ def deterred_train_model(model_path:str, resume_epoch:int, loading_weights: bool
     
     except KeyboardInterrupt:
         print("\n[INFO] Train Interrupted")
+        model.save_weights(model_save_path + "_interrupted.h5")
         tf.keras.experimental.export_saved_model(model, model_save_path + "interrupted/")
         sys.exit(2)
 
     except Exception as err:
         print("\n{CRITICAL}: Error, UnHandled Exception: ", err, "\n", traceback.print_exc())
         print("{CRITICAL}: Trying to save the model")
+        model.save_weights(model_save_path + "_error.h5")
         tf.keras.experimental.export_saved_model(model, model_save_path + "error/")
         del model
         sys.exit(2)
