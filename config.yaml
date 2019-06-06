@@ -1,8 +1,7 @@
 no_of_epochs: 20
 learning_rate: 0.001
 batch_size: 4
-threads: 0
-gpus: 1
+gpus: 2
 train_data_path: "./dataset/train_data.csv"
 val_data_path: "./dataset/val_data.csv"
 test_data_path: "./dataset/test_data.csv"
