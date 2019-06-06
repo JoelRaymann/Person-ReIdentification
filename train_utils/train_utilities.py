@@ -3,8 +3,6 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 
 # import necessary packages
 import tensorflow as tf
-from tensorflow.python import keras
-
 
 # Import helper packages
 import numpy as np
@@ -34,8 +32,6 @@ def new_train_model(config: dict,):
             "model_name" : The model name, NOTE: This will be used to save the model.
         }
     """
-    tf.compat.v1.disable_eager_execution()
-
     # Get the configuration to train
     no_of_epochs = config["no_of_epochs"]
     learning_rate = config["learning_rate"]
@@ -84,17 +80,17 @@ def new_train_model(config: dict,):
         print("[INFO]: No. of GPU devices used: ", strategy.num_replicas_in_sync)
         with strategy.scope():
             model = person_reid_model.person_recognition_model()
-            model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+            model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
     
     else:
         model = person_reid_model.person_recognition_model()
-        model.compile(optimizer = keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
+        model.compile(optimizer = tf.keras.optimizers.Adam(lr = learning_rate), loss = "categorical_crossentropy", metrics = ['accuracy'])
 
     # set callbacks the model
-    csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
-    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
+    csv_callback = tf.keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
+    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
     model_save_path = "./models/saved_model/{0}".format(model_name)
 
     # Train model
@@ -148,8 +144,6 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
             "model_name" : The model name, NOTE: This will be used to save the model.
         }
     """
-    
-    tf.compat.v1.disable_eager_execution()
 
     # Get the configuration to train
     no_of_epochs = config["no_of_epochs"]
@@ -205,10 +199,10 @@ def deterred_train_model(model_path:str, resume_epoch:int, config: dict):
         model = tf.keras.models.load_model(model_path)
 
     # set callbacks the model
-    csv_callback = keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
-    checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
-    best_model_checkpoint_callback = keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
+    csv_callback = tf.keras.callbacks.CSVLogger("./output/csv_log/{0}_log.csv".format(model_name))
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir = "./{0}_logs".format(model_name)) 
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/checkpoints/{0}_checkpoint.h5".format(model_name), period = 1)
+    best_model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint("./models/best_model/best_{0}_checkpoint.h5".format(model_name), save_best_only = True)
     model_save_path = "./models/saved_model/{0}".format(model_name)
 
     # Train model
