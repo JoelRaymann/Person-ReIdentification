@@ -110,7 +110,7 @@ def load_tf_dataset_generator(dataset_meta_path: str, batch_size = 32, shuffle =
     
     Keyword Arguments:
         batch_size {int} -- The batch_size needed (default: {32})
-        shuffle {bool} -- The shuffle b
+        shuffle {bool} -- The shuffle status flag
         shuffle_buffer {int} -- The shuffle buffer for shuffling (default: {10000})
     
     Returns:

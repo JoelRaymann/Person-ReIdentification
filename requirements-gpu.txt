@@ -1,0 +1,10 @@
+numpy
+pandas
+h5py
+scipy
+sklearn
+matplotlib
+progressbar2
+argparse
+tensorflow==2.0.0a
+tensorflow-gpu==2.0.0a
